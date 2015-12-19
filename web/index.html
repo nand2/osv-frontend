@@ -58,25 +58,57 @@
         
 
         <script>
+          var style = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+              color: [0, 0, 255, 0.5],
+              width: 5
+            })
+          });
 
-        var map = new ol.Map({
-          layers: [
-            new ol.layer.Tile({
-              source: new ol.source.MapQuest({layer: 'osm'})
+          var osvLayer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+              url: 'osv.geojson',
+              format: new ol.format.GeoJSON()
+            }),
+            style: style
+          });
+
+          var map = new ol.Map({
+            layers: [
+              new ol.layer.Tile({
+                source: new ol.source.MapQuest({layer: 'osm'})
+              }),
+              osvLayer
+            ],
+            target: 'map',
+            controls: ol.control.defaults({
+              attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+                collapsible: false
+              })
+            }),
+            view: new ol.View({
+              maxZoom: 19,
+              center: ol.proj.fromLonLat([2.309241, 48.88711]),
+              zoom: 19
             })
-          ],
-          target: 'map',
-          controls: ol.control.defaults({
-            attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
-              collapsible: false
-            })
-          }),
-          view: new ol.View({
-            maxZoom: 19,
-            center: ol.proj.fromLonLat([2.309241, 48.88711]),
-            zoom: 19
-          })
-        });
+          });
+
+
+
+          var displayFeatureInfo = function(pixel) {
+            var feature = map.forEachFeatureAtPixel(pixel, function(feature, layer) {
+              return feature;
+            });
+
+            var info = document.getElementById('info');
+            if (feature) {
+              console.log(feature);
+            }
+          };
+
+          map.on('click', function(evt) {
+            displayFeatureInfo(evt.pixel);
+          });
 
         </script>
 
@@ -88,7 +120,9 @@
             onMouseDownMouseX = 0, onMouseDownMouseY = 0,
             lon = 0, onMouseDownLon = 0,
             lat = 0, onMouseDownLat = 0,
-            phi = 0, theta = 0;
+            phi = 0, theta = 0
+            width = window.innerWidth / 2, height = 500;
+
 
             init();
             animate();
@@ -99,7 +133,7 @@
 
                 osviewer = document.getElementById( 'osviewer' );
 
-                camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
+                camera = new THREE.PerspectiveCamera( 75, width / height, 1, 1100 );
                 camera.target = new THREE.Vector3( 0, 0, 0 );
 
                 scene = new THREE.Scene();
@@ -116,9 +150,9 @@
                 scene.add( mesh );
 
                 renderer = new THREE.WebGLRenderer();
-                renderer.setPixelRatio( window.devicePixelRatio );
-                renderer.setSize( window.innerWidth / 2, 500);
-                osviewer.appendChild( renderer.domElement );
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(width, height);
+                osviewer.appendChild(renderer.domElement);
 
                 osviewer.addEventListener( 'mousedown', onDocumentMouseDown, false );
                 osviewer.addEventListener( 'mousemove', onDocumentMouseMove, false );
@@ -171,16 +205,14 @@
             }
 
             function onWindowResize() {
-
-                camera.aspect = window.innerWidth / window.innerHeight;
+                width = window.innerWidth / 2
+                camera.aspect = width / height;
                 camera.updateProjectionMatrix();
 
-                renderer.setSize( window.innerWidth, window.innerHeight );
-
+                renderer.setSize(width, height);
             }
 
             function onDocumentMouseDown( event ) {
-
                 event.preventDefault();
 
                 isUserInteracting = true;
@@ -190,61 +222,40 @@
 
                 onPointerDownLon = lon;
                 onPointerDownLat = lat;
-
             }
 
             function onDocumentMouseMove( event ) {
-
                 if ( isUserInteracting === true ) {
-
                     lon = ( onPointerDownPointerX - event.clientX ) * 0.1 + onPointerDownLon;
                     lat = ( event.clientY - onPointerDownPointerY ) * 0.1 + onPointerDownLat;
-
                 }
-
             }
 
             function onDocumentMouseUp( event ) {
-
                 isUserInteracting = false;
-
             }
 
             function onDocumentMouseWheel( event ) {
-
                 // WebKit
-
                 if ( event.wheelDeltaY ) {
-
                     camera.fov -= event.wheelDeltaY * 0.05;
-
                 // Opera / Explorer 9
-
                 } else if ( event.wheelDelta ) {
-
                     camera.fov -= event.wheelDelta * 0.05;
-
                 // Firefox
-
                 } else if ( event.detail ) {
-
-                    camera.fov += event.detail * 1.0;
-
+                    camera.fov += event.detail * 0.05;
                 }
 
                 camera.updateProjectionMatrix();
-
             }
 
             function animate() {
-
                 requestAnimationFrame( animate );
                 update();
-
             }
 
             function update() {
-
                 lat = Math.max( - 85, Math.min( 85, lat ) );
                 phi = THREE.Math.degToRad( 90 - lat );
                 theta = THREE.Math.degToRad( lon );
@@ -261,7 +272,6 @@
                 */
 
                 renderer.render( scene, camera );
-
             }
 
         </script>
