@@ -182,7 +182,12 @@
                 }
               }
               var closestGeometryCoordinate = coordinates[closestCoordinateId];
+              var picsData = closestFeature.get("pics");
+              var picData = picsData[closestCoordinateId];
+              console.log(picData);
               
+
+
               if(debug) {
                 if (debugClosestGeometryPoint === null) {
                   debugClosestGeometryPoint = new ol.geom.Point(closestGeometryPoint);
