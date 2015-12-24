@@ -32,7 +32,7 @@
               height: 500px;
             }
 
-            #demo #osviewer {
+            #demo #openstreetview {
                 font-size: 0px;
             }
 
@@ -49,6 +49,7 @@
         <script src="lib/bootstrap/js/bootstrap.min.js"></script>
         <script src="lib/threejs/three.min.js"></script>
         <script src="lib/openlayers/ol.js"></script>
+        <script src="js/openstreetview.js"></script>
     </head>
     <body>
 
@@ -94,7 +95,7 @@
             </div>
 
             <div class="col-md-6">
-                <div id="osviewer"></div>
+                <div id="openstreetview"></div>
             </div>
         </div>
 
@@ -104,7 +105,6 @@
                 The free and collaborative 360° street view of the world
             </div>
         </div>
-
         
 
         <script>
@@ -254,167 +254,12 @@
         </script>
 
         <script>
-
-            var camera, scene, renderer;
-
-            var isUserInteracting = false,
-            onMouseDownMouseX = 0, onMouseDownMouseY = 0,
-            lon = 0, onMouseDownLon = 0,
-            lat = 0, onMouseDownLat = 0,
-            phi = 0, theta = 0
-            width = window.innerWidth / 2, height = 500;
-
-
-            init();
-            animate();
-
-            function init() {
-
-                var osviewer, mesh;
-
-                osviewer = document.getElementById( 'osviewer' );
-
-                camera = new THREE.PerspectiveCamera( 75, width / height, 1, 1100 );
-                camera.target = new THREE.Vector3( 0, 0, 0 );
-
-                scene = new THREE.Scene();
-
-                var geometry = new THREE.SphereGeometry( 500, 60, 40 );
-                geometry.scale( - 1, 1, 1 );
-
-                var material = new THREE.MeshBasicMaterial( {
-                    map: THREE.ImageUtils.loadTexture( 'img/1.jpg' )
-                } );
-
-                mesh = new THREE.Mesh( geometry, material );
-                
-                scene.add( mesh );
-
-                renderer = new THREE.WebGLRenderer();
-                renderer.setPixelRatio(window.devicePixelRatio);
-                renderer.setSize(width, height);
-                osviewer.appendChild(renderer.domElement);
-
-                osviewer.addEventListener( 'mousedown', onDocumentMouseDown, false );
-                osviewer.addEventListener( 'mousemove', onDocumentMouseMove, false );
-                osviewer.addEventListener( 'mouseup', onDocumentMouseUp, false );
-                osviewer.addEventListener( 'mousewheel', onDocumentMouseWheel, false );
-                osviewer.addEventListener( 'MozMousePixelScroll', onDocumentMouseWheel, false);
-
-                //
-
-                osviewer.addEventListener( 'dragover', function ( event ) {
-
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'copy';
-
-                }, false );
-
-                osviewer.addEventListener( 'dragenter', function ( event ) {
-
-                    document.body.style.opacity = 0.5;
-
-                }, false );
-
-                osviewer.addEventListener( 'dragleave', function ( event ) {
-
-                    document.body.style.opacity = 1;
-
-                }, false );
-
-                osviewer.addEventListener( 'drop', function ( event ) {
-
-                    event.preventDefault();
-
-                    var reader = new FileReader();
-                    reader.addEventListener( 'load', function ( event ) {
-
-                        material.map.image.src = event.target.result;
-                        material.map.needsUpdate = true;
-
-                    }, false );
-                    reader.readAsDataURL( event.dataTransfer.files[ 0 ] );
-
-                    document.body.style.opacity = 1;
-
-                }, false );
-
-                //
-
-                window.addEventListener( 'resize', onWindowResize, false );
-
-            }
-
-            function onWindowResize() {
-                width = window.innerWidth / 2
-                camera.aspect = width / height;
-                camera.updateProjectionMatrix();
-
-                renderer.setSize(width, height);
-            }
-
-            function onDocumentMouseDown( event ) {
-                event.preventDefault();
-
-                isUserInteracting = true;
-
-                onPointerDownPointerX = event.clientX;
-                onPointerDownPointerY = event.clientY;
-
-                onPointerDownLon = lon;
-                onPointerDownLat = lat;
-            }
-
-            function onDocumentMouseMove( event ) {
-                if ( isUserInteracting === true ) {
-                    lon = ( onPointerDownPointerX - event.clientX ) * 0.1 + onPointerDownLon;
-                    lat = ( event.clientY - onPointerDownPointerY ) * 0.1 + onPointerDownLat;
-                }
-            }
-
-            function onDocumentMouseUp( event ) {
-                isUserInteracting = false;
-            }
-
-            function onDocumentMouseWheel( event ) {
-                // WebKit
-                if ( event.wheelDeltaY ) {
-                    camera.fov -= event.wheelDeltaY * 0.05;
-                // Opera / Explorer 9
-                } else if ( event.wheelDelta ) {
-                    camera.fov -= event.wheelDelta * 0.05;
-                // Firefox
-                } else if ( event.detail ) {
-                    camera.fov += event.detail * 0.05;
-                }
-
-                camera.updateProjectionMatrix();
-            }
-
-            function animate() {
-                requestAnimationFrame( animate );
-                update();
-            }
-
-            function update() {
-                lat = Math.max( - 85, Math.min( 85, lat ) );
-                phi = THREE.Math.degToRad( 90 - lat );
-                theta = THREE.Math.degToRad( lon );
-
-                camera.target.x = 500 * Math.sin( phi ) * Math.cos( theta );
-                camera.target.y = 500 * Math.cos( phi );
-                camera.target.z = 500 * Math.sin( phi ) * Math.sin( theta );
-
-                camera.lookAt( camera.target );
-
-                /*
-                // distortion
-                camera.position.copy( camera.target ).negate();
-                */
-
-                renderer.render( scene, camera );
-            }
-
+          var osv = new OpenStreetView({
+            width: window.innerWidth / 2,
+            height: 500
+          });
         </script>
+
+
     </body>
 </html>
