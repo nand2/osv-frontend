@@ -71,7 +71,7 @@
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 
               <ul class="nav navbar-nav navbar-right">
-                <li><p class="navbar-text text-sm"><span class="glyphicon glyphicon-camera" aria-hidden="true"></span> Currently 2 km mapped!</p></li>
+                <li><p class="navbar-text text-sm"><span class="glyphicon glyphicon-camera" aria-hidden="true"></span> Currently ~1 km mapped!</p></li>
                 <li><a href="#">Link</a></li>
                 <li class="dropdown">
                   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Dropdown <span class="caret"></span></a>
@@ -106,6 +106,9 @@
             </div>
         </div>
         
+        <div>
+          Work in progress, ETA for taking user contributions : Feb 2016
+        </div>
 
         <script>
           var style = new ol.style.Style({
@@ -115,10 +118,30 @@
             })
           });
 
+          // var vectorSource = new ol.source.Vector({
+          //     url: 'osv.geojson',
+          //     format: new ol.format.GeoJSON()
+          //   });
+
+          var geoJSONFormat = new ol.format.GeoJSON();
           var vectorSource = new ol.source.Vector({
-              url: 'osv.geojson',
-              format: new ol.format.GeoJSON()
+            format: new ol.format.GeoJSON(),
+            url: function(extent, resolution, projection) {
+              return 'osv.geojson?bbox=' + extent.join(',') + ',EPSG:3857';
+            },
+            strategy: ol.loadingstrategy.bbox
+          });
+          vectorSource.on('change', function() {
+            // Send all the picture data to the OpenStreetView instance
+            vectorSource.forEachFeature(function(feature) {
+              osvData = feature.get("openstreetview");
+              if(osvData) {
+                for(var i = 0; i < osvData.pics.length; i++) {
+                  osv.addPicture(osvData.pics[i]);
+                }
+              }
             });
+          });
 
           var osvLayer = new ol.layer.Vector({
             source: vectorSource,
@@ -182,9 +205,11 @@
                 }
               }
               var closestGeometryCoordinate = coordinates[closestCoordinateId];
-              var picsData = closestFeature.get("pics");
+              var picsData = closestFeature.get("openstreetview")['pics'];
               var picData = picsData[closestCoordinateId];
-              console.log(picData);
+              // Ask the OpenStreetView instance to display this picture
+              console.log(closestCoordinateId);
+              osv.showPicture(picData.id);
               
 
 

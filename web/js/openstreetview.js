@@ -2,6 +2,9 @@ function OpenStreetView (params) {
   var instance = this;
   var debug = true;
 
+  // Pics data
+  var picsData = {};
+
   // Three.js elements
   var domElement = null;
   var threeRenderer = null;
@@ -33,6 +36,40 @@ function OpenStreetView (params) {
   renderingLoop();
 
 
+  /**
+   * Add a picture into our library
+   */
+  this.addPicture = function(picData) {
+    picsData[picData.id] = picData;
+  };
+
+  /**
+   * Get all the pictures data
+   */
+  this.getPictures = function() {
+    return picsData;
+  }
+
+  /**
+   * Show a specific picture
+   */
+  this.showPicture = function(id) {
+    var pic = picsData[id];
+
+    threeScene = new THREE.Scene();
+
+    var threeGeometry = new THREE.SphereGeometry( 500, 60, 40 );
+    threeGeometry.scale( - 1, 1, 1 );
+
+    var threeMaterial = new THREE.MeshBasicMaterial( {
+        map: THREE.ImageUtils.loadTexture(pic.url)
+    });
+
+    threeMesh = new THREE.Mesh( threeGeometry, threeMaterial );
+    
+    threeScene.add( threeMesh );
+  }
+
   // Init the three renderer
   function initViewer() {
     domElement = document.getElementById(params.target);
@@ -46,7 +83,7 @@ function OpenStreetView (params) {
     threeGeometry.scale( - 1, 1, 1 );
 
     var threeMaterial = new THREE.MeshBasicMaterial( {
-        map: THREE.ImageUtils.loadTexture('/img/1.jpg')
+        map: THREE.ImageUtils.loadTexture('img/1.jpg')
     });
 
     threeMesh = new THREE.Mesh( threeGeometry, threeMaterial );
