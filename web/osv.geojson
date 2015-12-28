@@ -16,7 +16,13 @@
         "pics": [
           {
             "id": 1,
-            "url": "/img/1.jpg"
+            "url": "/img/1.jpg",
+            "neighbors": [
+              {
+                "id": 2,
+                "angle": -340
+              }
+            ]
           },
           {
             "id": 2,

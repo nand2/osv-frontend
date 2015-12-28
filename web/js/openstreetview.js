@@ -46,6 +46,10 @@ function OpenStreetView (params) {
    */
   this.addPicture = function(picData) {
     picsData[picData.id] = picData;
+
+    if(picData.id == currentPicId) {
+      showPictureArrows();
+    }
   };
 
   /**
@@ -80,11 +84,21 @@ function OpenStreetView (params) {
 
   // Show/update the arrows
   function showPictureArrows() {
-    arrowModel = new THREE.Object3D();
-    arrowModel.add(arrowMesh);
-    arrowModel.position.set(4, -2, 0);
-    threeScene.add(arrowModel);
-    threeArrows.push(arrowModel);
+    var pic = picsData[currentPicId];
+
+    if(pic == undefined) {
+      return;
+    }
+
+    if(pic.neighbors) {
+      for(var i = 0; i < pic.neighbors.length; i++) {
+        arrowModel = new THREE.Object3D();
+        arrowModel.add(arrowMesh);
+        arrowModel.position.set(4, -2, 0);
+        threeScene.add(arrowModel);
+        threeArrows.push(arrowModel);
+      }
+    }
   }
 
   // Init the three renderer
@@ -128,9 +142,11 @@ function OpenStreetView (params) {
       function ( geometry, materials ) {
         //var material = new THREE.MeshFaceMaterial( materials );
         material = new THREE.MeshBasicMaterial({
-          wireframe: true,
-          wireframeLinewidth: 2,
-          color: 'blue'
+          // wireframe: true,
+          // wireframeLinewidth: 2,
+          color: '#1e72a3',
+          opacity: 0.8,
+          transparent: true
         });
         arrowMesh = new THREE.Mesh(geometry, material);
         
@@ -210,7 +226,7 @@ function OpenStreetView (params) {
         console.log(new Date());
         console.log(intersects);
         console.log(intersects[0].point);
-        //instance.showPicture(2);
+        instance.showPicture(2);
         // change the color of the closest face.
         // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
         // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
