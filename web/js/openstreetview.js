@@ -90,11 +90,25 @@ function OpenStreetView (params) {
       return;
     }
 
+    // Removing current arrows
+    while(arrow = threeArrows.pop()) {
+      threeScene.remove(arrow);
+    }
+
+    // Adding new ones
     if(pic.neighbors) {
       for(var i = 0; i < pic.neighbors.length; i++) {
         arrowModel = new THREE.Object3D();
-        arrowModel.add(arrowMesh);
-        arrowModel.position.set(4, -2, 0);
+        arrowModel.add(arrowMesh.clone());
+
+        // Orientation
+        angle = pic.neighbors[i].angle * Math.PI / 180;
+        arrowModel.position.set(4 * Math.cos(angle), -2, -4 * Math.sin(angle));
+        arrowModel.rotateY(angle);
+
+        // Attach infos
+        arrowModel.userData.picId = pic.neighbors[i].id;
+
         threeScene.add(arrowModel);
         threeArrows.push(arrowModel);
       }
@@ -226,7 +240,7 @@ function OpenStreetView (params) {
         console.log(new Date());
         console.log(intersects);
         console.log(intersects[0].point);
-        instance.showPicture(2);
+        instance.showPicture(intersects[0].object.parent.userData.picId);
         // change the color of the closest face.
         // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
         // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;

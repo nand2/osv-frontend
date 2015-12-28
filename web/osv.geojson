@@ -20,21 +20,47 @@
             "neighbors": [
               {
                 "id": 2,
-                "angle": -340
+                "angle": 10
               }
             ]
           },
           {
             "id": 2,
-            "url": "/img/2.jpg"
+            "url": "/img/2.jpg",
+            "neighbors": [
+              {
+                "id": 3,
+                "angle": 5
+              },
+              {
+                "id": 1,
+                "angle": 185
+              }
+            ]
           },
           {
             "id": 3,
-            "url": "/img/3.jpg"
+            "url": "/img/3.jpg",
+            "neighbors": [
+              {
+                "id": 4,
+                "angle": 10
+              },
+              {
+                "id": 2,
+                "angle": 190
+              }
+            ]
           },
           {
             "id": 4,
-            "url": "/img/4.jpg"
+            "url": "/img/4.jpg",
+            "neighbors": [
+              {
+                "id": 3,
+                "angle": 180
+              }
+            ]
           }
         ]
       }
