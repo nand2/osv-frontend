@@ -282,18 +282,25 @@ function OpenStreetView (params) {
   }
 
   function onMouseWheel(event) {
+      var fovMax = 80;
+      var fovMin = 20;
+
+      var newFov = 0;
       // WebKit
       if (event.wheelDeltaY) {
-          threeCamera.fov -= event.wheelDeltaY * 0.05;
+          newFov = threeCamera.fov - event.wheelDeltaY * 0.05;
       // Opera / Explorer 9
       } else if (event.wheelDelta) {
-          threeCamera.fov -= event.wheelDelta * 0.05;
+          newFov = threeCamera.fov - event.wheelDelta * 0.05;
       // Firefox
       } else if (event.detail) {
-          threeCamera.fov += event.detail * 0.05;
+          newFov = threeCamera.fov + event.detail * 0.05;
       }
 
-      threeCamera.updateProjectionMatrix();
+      if(fovMin < newFov && newFov < fovMax) {
+        threeCamera.fov = newFov;
+        threeCamera.updateProjectionMatrix();
+      }
 
       event.preventDefault();
   }
