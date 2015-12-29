@@ -5,6 +5,7 @@ function OpenStreetView (params) {
   // Pics data
   var picsData = {};
   var currentPicId;
+  var picsTexture = {};
 
   // Three.js elements
   var domElement = null;
@@ -68,18 +69,11 @@ function OpenStreetView (params) {
     var pic = picsData[id];
     currentPicId = id;
 
-    threeScene = new THREE.Scene();
-
-    var threeGeometry = new THREE.SphereGeometry( 500, 60, 40 );
-    threeGeometry.scale( - 1, 1, 1 );
-
     var threeMaterial = new THREE.MeshBasicMaterial( {
-        map: THREE.ImageUtils.loadTexture(pic.url)
+        map: getPictureTexture(id)
     });
-
-    threeSphere = new THREE.Mesh( threeGeometry, threeMaterial );
-    
-    threeScene.add( threeSphere );
+    threeSphere.material.dispose();
+    threeSphere.material = threeMaterial;
 
     showPictureArrows();
   }
@@ -115,6 +109,22 @@ function OpenStreetView (params) {
         threeArrows.push(arrowModel);
       }
     }
+  }
+
+  // Fetch or reuse an image
+  function getPictureTexture(picId) {
+    var pic = picsData[picId];
+
+    if(pic == undefined) {
+      return null;
+    }
+
+    if(picsTexture[picId]) {
+      return picsTexture[picId];
+    }
+
+    picsTexture[currentPicId] = THREE.ImageUtils.loadTexture(pic.url);
+    return picsTexture[currentPicId];
   }
 
   // Init the three renderer
