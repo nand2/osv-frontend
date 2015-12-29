@@ -24,13 +24,15 @@ function OpenStreetView (params) {
   lat = 0, onMouseDownLat = 0,
   phi = 0, theta = 0;
   var isUserInteracting = false;
+  var initTime = null;
 
   var defaults = {
     // The DOM element receiving the viewer
     target: 'openstreetview',
     // The viewer dimension
     width: 640,
-    height: 480
+    height: 480,
+    hint360: false
   };
 
   // Merge default with params
@@ -118,6 +120,7 @@ function OpenStreetView (params) {
   // Init the three renderer
   function initViewer() {
     domElement = document.getElementById(params.target);
+    domElement.className = domElement.className + " openstreetview";
 
     threeCamera = new THREE.PerspectiveCamera( 75, params.width / params.height, 0.1, 1100);
     threeCamera.target = new THREE.Vector3( 0, 0, 0 );
@@ -174,6 +177,8 @@ function OpenStreetView (params) {
     window.addEventListener( 'mouseup', onMouseUp, false );
     domElement.addEventListener( 'mousewheel', onMouseWheel, false);
     domElement.addEventListener( 'MozMousePixelScroll', onMouseWheel, false);
+
+    initTime = new Date();
   }
 
   // The rendering loop
@@ -184,6 +189,14 @@ function OpenStreetView (params) {
 
   // The main rendering loop
   function render() {
+      // A 360 hint, to show that you can drag the picture around
+      if(params.hint360) {
+        var timediff = new Date() - initTime;
+        if(timediff < 4000) {
+          lon += 0.2 * (4000 - timediff) / 4000;
+        }
+      }
+
       lat = Math.max(-85, Math.min(85, lat));
       phi = THREE.Math.degToRad(90 - lat);
       theta = THREE.Math.degToRad(lon);

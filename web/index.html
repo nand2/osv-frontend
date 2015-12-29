@@ -10,6 +10,7 @@
 
         <link rel="stylesheet" href="lib/bootstrap/css/theme/bootstrap.min.css">
         <link rel="stylesheet" href="lib/openlayers/ol.css">
+        <link rel="stylesheet" href="css/openstreetview.css">
 
         <style>
             body {
@@ -106,6 +107,7 @@
               <li>End January 2016: Working navigation widget, integrated with OpenStreetMap (via OpenLayers)</li>
               <li>End February 2016: Ready to take user contributions</li>
               <li>End March 2016: Part of Paris being mapped on top of other contributions</li>
+              <li>End 2016: Have our own decentralized cloud storage system (e.g. our own <a href="http://storj.io/">Storj</a> instance), in which contributed hard disk space is being paid by monetary donations.</li>
             </ul>
           </div>
         </div>
@@ -281,7 +283,8 @@
         <script>
           var osv = new OpenStreetView({
             width: window.innerWidth / 2,
-            height: 500
+            height: 500,
+            hint360: true
           });
         </script>
 
