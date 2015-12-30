@@ -142,6 +142,11 @@
                 }
               }
             });
+
+            // If no picture shown yet, display the first one
+            if(osv.getDisplayedPictureId() == null) {
+              osv.showPicture(1);
+            }
           });
 
           var osvLayer = new ol.layer.Vector({

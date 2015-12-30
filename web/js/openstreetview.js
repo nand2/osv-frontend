@@ -4,7 +4,7 @@ function OpenStreetView (params) {
 
   // Pics data
   var picsData = {};
-  var currentPicId;
+  var currentPicId = null;
   var picsTexture = {};
 
   // Three.js elements
@@ -33,15 +33,12 @@ function OpenStreetView (params) {
     // The viewer dimension
     width: 640,
     height: 480,
-    hint360: false
+    hint360: false,
+    onLoad: null
   };
 
   // Merge default with params
   params = merge(defaults, params);
-
-  // Init the viewer
-  initViewer();
-  renderingLoop();
 
 
   /**
@@ -59,7 +56,14 @@ function OpenStreetView (params) {
    * Get all the pictures data
    */
   this.getPictures = function() {
-    return picsData;
+    return this.picsData;
+  }
+
+  /**
+   * Get the id of the picture currently being shown
+   */
+  this.getDisplayedPictureId = function() {
+    return this.currentPicId;
   }
 
   /**
@@ -67,6 +71,11 @@ function OpenStreetView (params) {
    */
   this.showPicture = function(id) {
     var pic = picsData[id];
+
+    if(pic == undefined) {
+      return;
+    }
+
     instance.currentPicId = id;
 
     var threeMaterial = new THREE.MeshBasicMaterial( {
@@ -82,6 +91,11 @@ function OpenStreetView (params) {
 
     showPictureArrows();
   }
+
+
+  //
+  // Private
+  //
 
   // Show/update the arrows
   function showPictureArrows() {
@@ -145,12 +159,7 @@ function OpenStreetView (params) {
     var threeGeometry = new THREE.SphereGeometry( 500, 60, 40 );
     threeGeometry.scale( - 1, 1, 1 );
 
-    // TODO
-    var threeMaterial = new THREE.MeshBasicMaterial( {
-        map: THREE.ImageUtils.loadTexture('img/1.jpg')
-    });
-    instance.currentPicId = 1;
-
+    var threeMaterial = new THREE.MeshBasicMaterial();
     threeSphere = new THREE.Mesh( threeGeometry, threeMaterial );
     
     threeScene.add( threeSphere );
@@ -322,5 +331,12 @@ function OpenStreetView (params) {
       }
     }
     return root;
+  }
+
+  // Init the viewer
+  initViewer();
+  renderingLoop();
+  if(params.onLoad && typeof params.onLoad == "function") {
+    params.onLoad(this);
   }
 }
