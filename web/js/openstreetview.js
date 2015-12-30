@@ -1,4 +1,181 @@
-function OpenStreetView (params) {
+function OpenStreetView(map, osvp) {
+  var instance = this;
+  var debug = true;
+  var debugClosestGeometryLine = null;
+  var debugClosestGeometryPoint = null;
+  var debugClosestPointLine = null;
+  var debugClosestPointPoint = null;
+
+  // OSM elements
+  var map = null;
+  var vectorSource = null;
+
+  // Our pane
+  var osvp = null;
+
+
+  this.map = map;
+  this.osvp = osvp;
+  init();
+
+
+  //
+  // PRIVATE
+  //
+
+  function init() {
+    var style = new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: [0, 0, 255, 0.5],
+        width: 5
+      })
+    });
+
+    var geoJSONFormat = new ol.format.GeoJSON();
+    vectorSource = new ol.source.Vector({
+      format: new ol.format.GeoJSON(),
+      url: function(extent, resolution, projection) {
+        return 'osv.geojson?bbox=' + extent.join(',') + ',EPSG:3857';
+      },
+      strategy: ol.loadingstrategy.bbox
+    });
+    vectorSource.on('change', function() {
+      // Send all the picture data to the OpenStreetView instance
+      vectorSource.forEachFeature(function(feature) {
+        osvData = feature.get("openstreetview");
+        if(osvData) {
+          for(var i = 0; i < osvData.pics.length; i++) {
+            this.osvp.addPicture(osvData.pics[i]);
+          }
+        }
+      }, this);
+
+      // If no picture shown yet, display the first one
+      if(this.osvp.getDisplayedPictureId() == null) {
+        this.osvp.showPicture(1);
+      }
+    }, this);
+
+    var osvLayer = new ol.layer.Vector({
+      source: vectorSource,
+      style: style
+    });
+
+    this.map.addLayer(osvLayer);
+
+    // On click on the map, display the closest available pic
+    this.map.on('click', function(evt) {
+      displayPicSnap(evt.coordinate);
+    });
+
+    if(debug) {
+      var imageStyle = new ol.style.Circle({
+        radius: 5,
+        fill: null,
+        stroke: new ol.style.Stroke({
+          color: 'rgba(255,0,0,0.9)',
+          width: 1
+        })
+      });
+      var strokeStyle = new ol.style.Stroke({
+        color: 'rgba(255,0,0,0.9)',
+        width: 1
+      });
+      this.map.on('postcompose', function(evt) {
+        var vectorContext = evt.vectorContext;
+        if (debugClosestGeometryPoint !== null) {
+          vectorContext.setImageStyle(imageStyle);
+          vectorContext.drawPointGeometry(debugClosestGeometryPoint);
+        }
+        if (debugClosestGeometryLine !== null) {
+          vectorContext.setFillStrokeStyle(null, strokeStyle);
+          vectorContext.drawLineStringGeometry(debugClosestGeometryLine);
+        }
+        if (debugClosestPointPoint !== null) {
+          vectorContext.setImageStyle(imageStyle);
+          vectorContext.drawPointGeometry(debugClosestPointPoint);
+        }
+        if (debugClosestPointLine !== null) {
+          vectorContext.setFillStrokeStyle(null, strokeStyle);
+          vectorContext.drawLineStringGeometry(debugClosestPointLine);
+        }
+      });            
+    }
+  }
+
+  // Basic distance between points, incorrect in long lengths (projection etc)
+  function distanceBetweenPoints(latlng1, latlng2){
+      var line = new ol.geom.LineString([latlng1, latlng2]);
+      return Math.round(line.getLength() * 100) / 100;
+  };
+
+
+  function displayPicSnap(coordinate) {
+    // Get the closest line of pics
+    var closestFeature = vectorSource.getClosestFeatureToCoordinate(coordinate);
+    if (closestFeature != null) {
+      // Get the closest point in the line of pics
+      var geometry = closestFeature.getGeometry();
+      var closestGeometryPoint = geometry.getClosestPoint(coordinate);
+
+      // Get the closest actual pic on the line of pics
+      var coordinates = geometry.getCoordinates();
+      var closestCoordinateId = 0;
+      var minDistance = distanceBetweenPoints(closestGeometryPoint, coordinates[0]);
+      for(var i = 1; i < coordinates.length; i++) {
+        var distance = distanceBetweenPoints(closestGeometryPoint, coordinates[i]);
+        if(distance < minDistance) {
+            closestCoordinateId = i;
+            minDistance = distance;
+        }
+      }
+      var closestGeometryCoordinate = coordinates[closestCoordinateId];
+      var picsData = closestFeature.get("openstreetview")['pics'];
+      var picData = picsData[closestCoordinateId];
+      // Ask the OpenStreetView instance to display this picture
+      this.osvp.showPicture(picData.id);
+      
+
+
+      if(debug) {
+        if (debugClosestGeometryPoint === null) {
+          debugClosestGeometryPoint = new ol.geom.Point(closestGeometryPoint);
+        } else {
+          debugClosestGeometryPoint.setCoordinates(closestGeometryPoint);
+        }
+        var coordinates = [coordinate, [closestGeometryPoint[0], closestGeometryPoint[1]]];
+        if (debugClosestGeometryLine === null) {
+          debugClosestGeometryLine = new ol.geom.LineString(coordinates);
+        } else {
+          debugClosestGeometryLine.setCoordinates(coordinates);
+        }
+
+        if (debugClosestPointPoint === null) {
+          debugClosestPointPoint = new ol.geom.Point(closestGeometryCoordinate);
+        } else {
+          debugClosestPointPoint.setCoordinates(closestGeometryCoordinate);
+        }
+        var debugLineCoordinates = [closestGeometryPoint, closestGeometryCoordinate];
+        if (debugClosestPointLine === null) {
+          debugClosestPointLine = new ol.geom.LineString(debugLineCoordinates);
+        } else {
+          debugClosestPointLine.setCoordinates(debugLineCoordinates);
+        }
+      }
+    }
+
+    this.map.render();
+  };
+}
+
+
+
+
+
+/**
+ * The 
+ */
+function OpenStreetViewPane(params) {
   var instance = this;
   var debug = true;
 
