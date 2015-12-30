@@ -16,6 +16,10 @@
         "pics": [
           {
             "id": 1,
+            "coordinates": {
+              "lat": 48.88711,
+              "lon": 2.309265
+            },
             "url": "/img/1.jpg",
             "correction": {
               "rotation": {
@@ -33,6 +37,10 @@
           },
           {
             "id": 2,
+            "coordinates": {
+              "lat": 48.88698,
+              "lon": 2.309065
+            },
             "url": "/img/2.jpg",
             "correction": {
               "rotation": {
@@ -54,6 +62,10 @@
           },
           {
             "id": 3,
+            "coordinates": {
+              "lat": 48.88685,
+              "lon": 2.308865
+            },
             "url": "/img/3.jpg",
             "correction": {
               "rotation": {
@@ -75,6 +87,10 @@
           },
           {
             "id": 4,
+            "coordinates": {
+              "lat": 48.88672,
+              "lon": 2.308665
+            },
             "url": "/img/4.jpg",
             "correction": {
               "rotation": {

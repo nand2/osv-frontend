@@ -1,21 +1,40 @@
-function OpenStreetView(map, osvp) {
-  var instance = this;
+/**
+ * The bridge between the OSM map and the OSV viewer
+ */
+function OpenStreetView(map_arg, osvp_arg, params) {
+  var self = this;
   var debug = true;
   var debugClosestGeometryLine = null;
   var debugClosestGeometryPoint = null;
   var debugClosestPointLine = null;
-  var debugClosestPointPoint = null;
 
   // OSM elements
   var map = null;
   var vectorSource = null;
+  this.positionPoint = new ol.geom.Point([0,0]);
 
   // Our pane
   var osvp = null;
 
 
-  this.map = map;
-  this.osvp = osvp;
+  var defaults = {
+    positionPointStyle: new ol.style.Circle({
+      radius: 10,
+      fill: new  ol.style.Fill({
+        color: 'rgba(255, 153, 51,0.5)'
+      }),
+      stroke: new ol.style.Stroke({
+        color: 'rgba(255, 153, 51,0.9)',
+        width: 2
+      })
+    })
+  };
+
+  // Merge default with params
+  this.params = merge(defaults, params);
+
+  self.map = map_arg;
+  self.osvp = osvp_arg;
   init();
 
 
@@ -64,9 +83,24 @@ function OpenStreetView(map, osvp) {
     this.map.addLayer(osvLayer);
 
     // On click on the map, display the closest available pic
-    this.map.on('click', function(evt) {
-      displayPicSnap(evt.coordinate);
+    this.map.on('click', function(e) {
+      displayPicSnap(e.coordinate);
     });
+
+    // On navigation on the OSV viewer, update our location point
+    this.osvp.on('navigate', function(e) {
+      var picsData = self.osvp.getPictures();
+      var picData = picsData[e.newPicId];
+      self.positionPoint.setCoordinates(ol.proj.fromLonLat([picData.coordinates.lon, picData.coordinates.lat]));
+      self.map.render();
+    });
+
+    // On map draw, draw the current position
+    this.map.on('postcompose', function(evt) {
+      var vectorContext = evt.vectorContext;
+      vectorContext.setImageStyle(self.params.positionPointStyle);
+      vectorContext.drawPointGeometry(self.positionPoint);
+    });            
 
     if(debug) {
       var imageStyle = new ol.style.Circle({
@@ -91,10 +125,6 @@ function OpenStreetView(map, osvp) {
           vectorContext.setFillStrokeStyle(null, strokeStyle);
           vectorContext.drawLineStringGeometry(debugClosestGeometryLine);
         }
-        if (debugClosestPointPoint !== null) {
-          vectorContext.setImageStyle(imageStyle);
-          vectorContext.drawPointGeometry(debugClosestPointPoint);
-        }
         if (debugClosestPointLine !== null) {
           vectorContext.setFillStrokeStyle(null, strokeStyle);
           vectorContext.drawLineStringGeometry(debugClosestPointLine);
@@ -107,7 +137,7 @@ function OpenStreetView(map, osvp) {
   function distanceBetweenPoints(latlng1, latlng2){
       var line = new ol.geom.LineString([latlng1, latlng2]);
       return Math.round(line.getLength() * 100) / 100;
-  };
+  }
 
 
   function displayPicSnap(coordinate) {
@@ -150,11 +180,6 @@ function OpenStreetView(map, osvp) {
           debugClosestGeometryLine.setCoordinates(coordinates);
         }
 
-        if (debugClosestPointPoint === null) {
-          debugClosestPointPoint = new ol.geom.Point(closestGeometryCoordinate);
-        } else {
-          debugClosestPointPoint.setCoordinates(closestGeometryCoordinate);
-        }
         var debugLineCoordinates = [closestGeometryPoint, closestGeometryCoordinate];
         if (debugClosestPointLine === null) {
           debugClosestPointLine = new ol.geom.LineString(debugLineCoordinates);
@@ -165,22 +190,33 @@ function OpenStreetView(map, osvp) {
     }
 
     this.map.render();
-  };
+  }
+
+  // Merge objects together - from Secrets fo the JavaScript Ninja
+  function merge(root) {
+    for (var i = 1; i < arguments.length; i++) {
+      for (var key in arguments[i]) {
+        root[key] = arguments[i][key];
+      }
+    }
+    return root;
+  }
 }
 
 
 
 
 
+
 /**
- * The 
+ * The viewer of the OSV pics
  */
 function OpenStreetViewPane(params) {
-  var instance = this;
+  var self = this;
   var debug = true;
 
   // Pics data
-  var picsData = {};
+  this.picsData = {};
   var currentPicId = null;
   var picsTexture = {};
 
@@ -210,21 +246,24 @@ function OpenStreetViewPane(params) {
     // The viewer dimension
     width: 640,
     height: 480,
-    hint360: false,
-    onLoad: null
+    hint360: false
   };
 
   // Merge default with params
   params = merge(defaults, params);
+
+  // Init the viewer
+  initViewer();
+  renderingLoop();
 
 
   /**
    * Add a picture into our library
    */
   this.addPicture = function(picData) {
-    picsData[picData.id] = picData;
+    self.picsData[picData.id] = picData;
 
-    if(picData.id == instance.currentPicId) {
+    if(picData.id == self.currentPicId) {
       showPictureArrows();
     }
   };
@@ -233,7 +272,7 @@ function OpenStreetViewPane(params) {
    * Get all the pictures data
    */
   this.getPictures = function() {
-    return this.picsData;
+    return self.picsData;
   }
 
   /**
@@ -247,13 +286,18 @@ function OpenStreetViewPane(params) {
    * Show a specific picture
    */
   this.showPicture = function(id) {
-    var pic = picsData[id];
+    var pic = self.picsData[id];
 
     if(pic == undefined) {
       return;
     }
 
-    instance.currentPicId = id;
+    if(self.currentPicId == id) {
+      return;
+    }
+
+    var oldPicId = self.currentPicId;
+    self.currentPicId = id;
 
     var threeMaterial = new THREE.MeshBasicMaterial( {
         map: getPictureTexture(id)
@@ -267,6 +311,18 @@ function OpenStreetViewPane(params) {
     threeSphere.rotation.z = pic.correction.rotation.z * Math.PI / 180;
 
     showPictureArrows();
+
+    var event = new Event('navigate');
+    event.oldPicId = oldPicId;
+    event.newPicId = id;
+    self.domElement.dispatchEvent(event);
+  }
+
+  /**
+   * Event listener
+   */
+  this.on = function(type, listener) {
+    self.domElement.addEventListener(type, listener);
   }
 
 
@@ -276,7 +332,7 @@ function OpenStreetViewPane(params) {
 
   // Show/update the arrows
   function showPictureArrows() {
-    var pic = picsData[instance.currentPicId];
+    var pic = self.picsData[self.currentPicId];
 
     if(pic == undefined) {
       return;
@@ -309,7 +365,7 @@ function OpenStreetViewPane(params) {
 
   // Fetch or reuse an image
   function getPictureTexture(picId) {
-    var pic = picsData[picId];
+    var pic = self.picsData[picId];
 
     if(pic == undefined) {
       return null;
@@ -325,8 +381,8 @@ function OpenStreetViewPane(params) {
 
   // Init the three renderer
   function initViewer() {
-    domElement = document.getElementById(params.target);
-    domElement.className = domElement.className + " openstreetview";
+    self.domElement = document.getElementById(params.target);
+    self.domElement.className = self.domElement.className + " openstreetview";
 
     threeCamera = new THREE.PerspectiveCamera( 75, params.width / params.height, 0.1, 1100);
     threeCamera.target = new THREE.Vector3( 0, 0, 0 );
@@ -344,7 +400,7 @@ function OpenStreetViewPane(params) {
     threeRenderer = new THREE.WebGLRenderer({ antialias: true });
     threeRenderer.setPixelRatio(window.devicePixelRatio);
     threeRenderer.setSize(params.width, params.height);
-    domElement.appendChild(threeRenderer.domElement);    
+    self.domElement.appendChild(threeRenderer.domElement);    
 
     // initialize raycaster
     threeRaycaster = new THREE.Raycaster()
@@ -373,11 +429,11 @@ function OpenStreetViewPane(params) {
     );
 
     // Setup the controls
-    domElement.addEventListener( 'mousedown', onMouseDown, false);
+    self.domElement.addEventListener( 'mousedown', onMouseDown, false);
     window.addEventListener( 'mousemove', onMouseMove, false);
     window.addEventListener( 'mouseup', onMouseUp, false );
-    domElement.addEventListener( 'mousewheel', onMouseWheel, false);
-    domElement.addEventListener( 'MozMousePixelScroll', onMouseWheel, false);
+    self.domElement.addEventListener( 'mousewheel', onMouseWheel, false);
+    self.domElement.addEventListener( 'MozMousePixelScroll', onMouseWheel, false);
 
     initTime = new Date();
   }
@@ -433,7 +489,7 @@ function OpenStreetViewPane(params) {
       // Find out if we got a directional arrow clicked
       //
       // Local 2D x/y cursor position
-      var rect = domElement.getBoundingClientRect();
+      var rect = self.domElement.getBoundingClientRect();
       var x = event.clientX - rect.left;
       var y = event.clientY - rect.top;
 
@@ -451,7 +507,7 @@ function OpenStreetViewPane(params) {
       // if an arrow is clicked, we navigate
       if(intersects.length > 0)
       {
-        instance.showPicture(intersects[0].object.parent.userData.picId);
+        self.showPicture(intersects[0].object.parent.userData.picId);
         // change the color of the closest face.
         // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
         // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
@@ -510,10 +566,4 @@ function OpenStreetViewPane(params) {
     return root;
   }
 
-  // Init the viewer
-  initViewer();
-  renderingLoop();
-  if(params.onLoad && typeof params.onLoad == "function") {
-    params.onLoad(this);
-  }
 }
