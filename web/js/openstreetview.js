@@ -50,7 +50,7 @@ function OpenStreetView (params) {
   this.addPicture = function(picData) {
     picsData[picData.id] = picData;
 
-    if(picData.id == currentPicId) {
+    if(picData.id == instance.currentPicId) {
       showPictureArrows();
     }
   };
@@ -67,7 +67,7 @@ function OpenStreetView (params) {
    */
   this.showPicture = function(id) {
     var pic = picsData[id];
-    currentPicId = id;
+    instance.currentPicId = id;
 
     var threeMaterial = new THREE.MeshBasicMaterial( {
         map: getPictureTexture(id)
@@ -75,12 +75,17 @@ function OpenStreetView (params) {
     threeSphere.material.dispose();
     threeSphere.material = threeMaterial;
 
+    // Picture angle correction
+    threeSphere.rotation.x = pic.correction.rotation.x * Math.PI / 180;
+    threeSphere.rotation.y = pic.correction.rotation.y * Math.PI / 180;
+    threeSphere.rotation.z = pic.correction.rotation.z * Math.PI / 180;
+
     showPictureArrows();
   }
 
   // Show/update the arrows
   function showPictureArrows() {
-    var pic = picsData[currentPicId];
+    var pic = picsData[instance.currentPicId];
 
     if(pic == undefined) {
       return;
@@ -123,8 +128,8 @@ function OpenStreetView (params) {
       return picsTexture[picId];
     }
 
-    picsTexture[currentPicId] = THREE.ImageUtils.loadTexture(pic.url);
-    return picsTexture[currentPicId];
+    picsTexture[picId] = THREE.ImageUtils.loadTexture(pic.url);
+    return picsTexture[picId];
   }
 
   // Init the three renderer
@@ -144,7 +149,7 @@ function OpenStreetView (params) {
     var threeMaterial = new THREE.MeshBasicMaterial( {
         map: THREE.ImageUtils.loadTexture('img/1.jpg')
     });
-    currentPicId = 1;
+    instance.currentPicId = 1;
 
     threeSphere = new THREE.Mesh( threeGeometry, threeMaterial );
     
@@ -260,9 +265,6 @@ function OpenStreetView (params) {
       // if an arrow is clicked, we navigate
       if(intersects.length > 0)
       {
-        console.log(new Date());
-        console.log(intersects);
-        console.log(intersects[0].point);
         instance.showPicture(intersects[0].object.parent.userData.picId);
         // change the color of the closest face.
         // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
@@ -272,8 +274,8 @@ function OpenStreetView (params) {
 
   function onMouseMove(event) {
       if ( isUserInteracting === true ) {
-          lon = ( onPointerDownPointerX - event.clientX ) * 0.1 + onPointerDownLon;
-          lat = ( event.clientY - onPointerDownPointerY ) * 0.1 + onPointerDownLat;
+          lon = (onPointerDownPointerX - event.clientX) * 0.1 + onPointerDownLon;
+          lat = (event.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
       }
   }
 
