@@ -2,9 +2,7 @@
  * The bridge between the OSM map and the OSV viewer
  */
 function OpenStreetView(map_arg, osvp_arg, params) {
-  this.debugClosestGeometryLine = null;
-  this.debugClosestGeometryPoint = null;
-  this.debugClosestPointLine = null;
+  this.debugClosestPicPath = null;
 
   // OSM elements
   this.map = null;
@@ -39,6 +37,20 @@ function OpenStreetView(map_arg, osvp_arg, params) {
         color: 'rgba(255, 153, 51,0.4)',
         width: 2
       })
+    }),
+    // The style of the marker of a pic path point for debug
+    debugPicPathPointStyle: new ol.style.Circle({
+      radius: 7,
+      fill: null,
+      stroke: new ol.style.Stroke({
+        color: 'rgba(255, 153, 51,0.4)',
+        width: 2
+      })
+    }),
+    // The style used to display a pic path line for debug
+    debugPicPathLineStyle: new ol.style.Stroke({
+      color: 'rgba(255, 153, 51,0.4)',
+      width: 2
     }),
   };
 
@@ -94,6 +106,7 @@ OpenStreetView.prototype = {
 
     this.map.addLayer(osvLayer);
 
+
     // On click on the map, display the closest available pic
     this.map.on('click', function(e) {
       this.displayPicSnap(e.coordinate);
@@ -133,39 +146,6 @@ OpenStreetView.prototype = {
       // Inserting it
       var myControl = new ol.control.Control({element: div});
       myControl.setMap(this.map);
-    }      
-
-    if(this.params.debug) {
-      var imageStyle = new ol.style.Circle({
-        radius: 5,
-        fill: null,
-        stroke: new ol.style.Stroke({
-          color: 'rgba(255,0,0,0.9)',
-          width: 1
-        })
-      });
-      var strokeStyle = new ol.style.Stroke({
-        color: 'rgba(255,0,0,0.9)',
-        width: 1
-      });
-      this.map.on('postcompose', function(evt) {
-        var vectorContext = evt.vectorContext;
-
-        this.debugPostCompose(vectorContext);
-
-        if (this.debugClosestGeometryPoint !== null) {
-          vectorContext.setImageStyle(imageStyle);
-          vectorContext.drawPointGeometry(this.debugClosestGeometryPoint);
-        }
-        if (this.debugClosestGeometryLine !== null) {
-          vectorContext.setFillStrokeStyle(null, strokeStyle);
-          vectorContext.drawLineStringGeometry(this.debugClosestGeometryLine);
-        }
-        if (this.debugClosestPointLine !== null) {
-          vectorContext.setFillStrokeStyle(null, strokeStyle);
-          vectorContext.drawLineStringGeometry(this.debugClosestPointLine);
-        }
-      }, this);
     }
   },
 
@@ -174,12 +154,50 @@ OpenStreetView.prototype = {
    * Show the pic closest to the given coordinates
    */
   displayPicSnap: function(coordinate) {
+    // Get the closest pic
+    path = this.getClosestPicPath(coordinate);
+    if(path.picId != null) {
+      // Ask the OpenStreetView instance to display this picture
+      this.osvp.showPicture(path.picId);
+
+      // If we are debugging, we display the path
+      if(this.params.debug) {
+        this.debugClosestPicPath = path.path;
+      }
+
+      // Redraw
+      this.map.render();
+    }
+  },
+
+  /**
+   * Get the pic closest to the given coordinates
+   */
+  getClosestPic: function(coordinate) {
+    var result = null;
+
+    path = this.getClosestPicPath(coordinate);
+
+    return path.picId;
+  },
+
+  /**
+   * Get the path between a given point and the given coordinates.
+   * Returns as {path: [coord1, coord2, ..], picId: picId}
+   */
+   getClosestPicPath: function(coordinate) {
+    var result = {
+      path: [coordinate],
+      picId: null
+    };
+
     // Get the closest line of pics
     var closestFeature = vectorSource.getClosestFeatureToCoordinate(coordinate);
     if (closestFeature != null) {
       // Get the closest point in the line of pics
       var geometry = closestFeature.getGeometry();
       var closestGeometryPoint = geometry.getClosestPoint(coordinate);
+      result.path.push(closestGeometryPoint);
 
       // Get the closest actual pic on the line of pics
       var coordinates = geometry.getCoordinates();
@@ -193,46 +211,42 @@ OpenStreetView.prototype = {
         }
       }
       var closestGeometryCoordinate = coordinates[closestCoordinateId];
+      result.path.push(closestGeometryCoordinate);
+
       var picsData = closestFeature.get("openstreetview")['pics'];
       var picData = picsData[closestCoordinateId];
-      // Ask the OpenStreetView instance to display this picture
-      this.osvp.showPicture(picData.id);
-      
-
-
-      if(this.params.debug) {
-        if (this.debugClosestGeometryPoint === null) {
-          this.debugClosestGeometryPoint = new ol.geom.Point(closestGeometryPoint);
-        } else {
-          this.debugClosestGeometryPoint.setCoordinates(closestGeometryPoint);
-        }
-        var coordinates = [coordinate, [closestGeometryPoint[0], closestGeometryPoint[1]]];
-        if (this.debugClosestGeometryLine === null) {
-          this.debugClosestGeometryLine = new ol.geom.LineString(coordinates);
-        } else {
-          this.debugClosestGeometryLine.setCoordinates(coordinates);
-        }
-
-        var debugLineCoordinates = [closestGeometryPoint, closestGeometryCoordinate];
-        if (this.debugClosestPointLine === null) {
-          this.debugClosestPointLine = new ol.geom.LineString(debugLineCoordinates);
-        } else {
-          this.debugClosestPointLine.setCoordinates(debugLineCoordinates);
-        }
-      }
+      result.picId = picData.id;
     }
 
-    this.map.render();
+    return result;
   },
 
   debugPostCompose: function(vectorContext) {
-      var picsData = this.osvp.getPictures();
-      Object.keys(picsData).forEach(function(picId) {
-        picData = picsData[picId];
-        debugPicPoint = new ol.geom.Point(ol.proj.fromLonLat([picData.coordinates.lon, picData.coordinates.lat]));
-        vectorContext.setImageStyle(this.params.debugPicturePointStyle);
-        vectorContext.drawPointGeometry(debugPicPoint);
-      }, this);
+    // Display all the available pictures  
+    var picsData = this.osvp.getPictures();
+    Object.keys(picsData).forEach(function(picId) {
+      picData = picsData[picId];
+      debugPicPoint = new ol.geom.Point(ol.proj.fromLonLat([picData.coordinates.lon, picData.coordinates.lat]));
+      vectorContext.setImageStyle(this.params.debugPicturePointStyle);
+      vectorContext.drawPointGeometry(debugPicPoint);
+    }, this);
+
+
+    // If we have a picture selection path, we show it
+    if(this.debugClosestPicPath) {
+      for(var i = 0; i < this.debugClosestPicPath.length - 1; i++) {
+        // Show point
+        debugPoint = new ol.geom.Point(this.debugClosestPicPath[i]);
+        vectorContext.setImageStyle(this.params.debugPicPathPointStyle);
+        vectorContext.drawPointGeometry(debugPoint);
+
+        // Show line
+        var coordinates = [this.debugClosestPicPath[i], this.debugClosestPicPath[i+1]];
+        debugLine = new ol.geom.LineString(coordinates);
+        vectorContext.setFillStrokeStyle(null, this.params.debugPicPathLineStyle);
+        vectorContext.drawLineStringGeometry(debugLine);
+      }
+    }
   },
 
   // Basic distance between points, incorrect in long lengths (projection etc)
