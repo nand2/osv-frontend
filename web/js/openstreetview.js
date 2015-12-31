@@ -208,37 +208,38 @@ OpenStreetView.prototype = {
 
 
 
+
+
 /**
  * The viewer of the OSV pics
  */
 function OpenStreetViewPane(params) {
-  var self = this;
-  var debug = true;
+  this.debug = true;
 
   // Pics data
   this.picsData = {};
-  var currentPicId = null;
-  var picsTexture = {};
+  this.currentPicId = null;
+  this.picsTexture = {};
 
   // Three.js elements
-  var domElement = null;
-  var threeRenderer = null;
-  var threeCamera = null;
-  var threeGeometry = null;
-  var threeMaterial = null;
-  var threeSphere = null;
-  var arrowMesh = null;
-  var threeArrows = [];
-  var threeScene = null;
-  var threeRaycaster = null;
-  var threeJsonLoader = null;
+  this.domElement = null;
+  this.threeRenderer = null;
+  this.threeCamera = null;
+  this.threeGeometry = null;
+  this.threeMaterial = null;
+  this.threeSphere = null;
+  this.arrowMesh = null;
+  this.threeArrows = [];
+  this.threeScene = null;
+  this.threeRaycaster = null;
+  this.threeJsonLoader = null;
 
   // Camera
-  var lon = 0, onMouseDownLon = 0,
-  lat = 0, onMouseDownLat = 0,
-  phi = 0, theta = 0;
-  var isUserInteracting = false;
-  var initTime = null;
+  this.lon = 0, this.onMouseDownLon = 0,
+  this.lat = 0, this.onMouseDownLat = 0,
+  this.phi = 0, this.theta = 0;
+  this.isUserInteracting = false;
+  this.initTime = null;
 
   var defaults = {
     // The DOM element receiving the viewer
@@ -250,57 +251,61 @@ function OpenStreetViewPane(params) {
   };
 
   // Merge default with params
-  params = merge(defaults, params);
+  this.params = this.merge(defaults, params);
 
   // Init the viewer
-  initViewer();
-  renderingLoop();
+  this.initViewer();
+  this.renderingLoop();
+}
 
+
+OpenStreetViewPane.prototype = {
+  constructor: OpenStreetViewPane,
 
   /**
    * Add a picture into our library
    */
-  this.addPicture = function(picData) {
-    self.picsData[picData.id] = picData;
+  addPicture: function(picData) {
+    this.picsData[picData.id] = picData;
 
-    if(picData.id == self.currentPicId) {
-      showPictureArrows();
+    if(picData.id == this.currentPicId) {
+      this.showPictureArrows();
     }
-  };
+  },
 
   /**
    * Get all the pictures data
    */
-  this.getPictures = function() {
-    return self.picsData;
-  }
+  getPictures: function() {
+    return this.picsData;
+  },
 
   /**
    * Get the id of the picture currently being shown
    */
-  this.getDisplayedPictureId = function() {
+  getDisplayedPictureId: function() {
     return this.currentPicId;
-  }
+  },
 
   /**
    * Show a specific picture
    */
-  this.showPicture = function(id) {
-    var pic = self.picsData[id];
+  showPicture: function(id) {
+    var pic = this.picsData[id];
 
     if(pic == undefined) {
       return;
     }
 
-    if(self.currentPicId == id) {
+    if(this.currentPicId == id) {
       return;
     }
 
-    var oldPicId = self.currentPicId;
-    self.currentPicId = id;
+    var oldPicId = this.currentPicId;
+    this.currentPicId = id;
 
     var threeMaterial = new THREE.MeshBasicMaterial( {
-        map: getPictureTexture(id)
+        map: this.getPictureTexture(id)
     });
     threeSphere.material.dispose();
     threeSphere.material = threeMaterial;
@@ -310,40 +315,133 @@ function OpenStreetViewPane(params) {
     threeSphere.rotation.y = pic.correction.rotation.y * Math.PI / 180;
     threeSphere.rotation.z = pic.correction.rotation.z * Math.PI / 180;
 
-    showPictureArrows();
+    this.showPictureArrows();
 
     var event = new Event('navigate');
     event.oldPicId = oldPicId;
     event.newPicId = id;
-    self.domElement.dispatchEvent(event);
-  }
+    this.domElement.dispatchEvent(event);
+  },
+
 
   /**
-   * Event listener
+   * PRIVATE
    */
-  this.on = function(type, listener, opt_this) {
-    if(opt_this) {
-      listener = listener.bind(opt_this);
+
+  /**
+   * Init the viewer with Three.js
+   */
+  initViewer: function() {
+    this.domElement = document.getElementById(this.params.target);
+    this.domElement.className = this.domElement.className + " openstreetview";
+
+    this.threeCamera = new THREE.PerspectiveCamera( 75, this.params.width / this.params.height, 0.1, 1100);
+    this.threeCamera.target = new THREE.Vector3( 0, 0, 0 );
+
+    this.threeScene = new THREE.Scene();
+
+    var threeGeometry = new THREE.SphereGeometry( 500, 60, 40 );
+    threeGeometry.scale( - 1, 1, 1 );
+
+    var threeMaterial = new THREE.MeshBasicMaterial();
+    threeSphere = new THREE.Mesh( threeGeometry, threeMaterial );
+    
+    this.threeScene.add( threeSphere );
+
+    this.threeRenderer = new THREE.WebGLRenderer({ antialias: true });
+    this.threeRenderer.setPixelRatio(window.devicePixelRatio);
+    this.threeRenderer.setSize(this.params.width, this.params.height);
+    this.domElement.appendChild(this.threeRenderer.domElement);    
+
+    // initialize raycaster
+    this.threeRaycaster = new THREE.Raycaster()
+
+    // Initialize JSON model loader
+    this.threeJsonLoader = new THREE.JSONLoader();
+
+    // load the arrow model
+    var self = this;
+    this.threeJsonLoader.load(
+      // resource URL
+      'models/arrow.json',
+      // Function when resource is loaded
+      function ( geometry, materials ) {
+        //var material = new THREE.MeshFaceMaterial( materials );
+        material = new THREE.MeshBasicMaterial({
+          // wireframe: true,
+          // wireframeLinewidth: 2,
+          color: '#1e72a3',
+          opacity: 0.8,
+          transparent: true
+        });
+        arrowMesh = new THREE.Mesh(geometry, material);
+        
+        self.showPictureArrows();
+      }
+    );
+
+    // Setup the controls
+    this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
+    window.addEventListener('mousemove', this.onMouseMove.bind(this), false);
+    window.addEventListener('mouseup', this.onMouseUp.bind(this), false );
+    this.domElement.addEventListener('mousewheel', this.onMouseWheel.bind(this), false);
+    this.domElement.addEventListener('MozMousePixelScroll', this.onMouseWheel.bind(this), false);
+
+    this.initTime = new Date();
+  },
+
+
+  /**
+   * The rendering loop
+   */
+  renderingLoop: function() {
+      requestAnimationFrame(this.renderingLoop.bind(this));
+      this.render();
+  },
+
+  /**
+   * The main rendering function
+   */
+  render: function() {
+    // A 360 hint, to show that you can drag the picture around
+    if(this.params.hint360) {
+      var timediff = new Date() - this.initTime;
+      if(timediff < 4000) {
+        this.lon += 0.2 * (4000 - timediff) / 4000;
+      }
     }
-    self.domElement.addEventListener(type, listener);
-  }
 
+    this.lat = Math.max(-85, Math.min(85, this.lat));
+    this.phi = THREE.Math.degToRad(90 - this.lat);
+    this.theta = THREE.Math.degToRad(this.lon);
 
-  //
-  // Private
-  //
+    this.threeCamera.target.x = 500 * Math.sin(this.phi) * Math.cos(this.theta);
+    this.threeCamera.target.y = 500 * Math.cos(this.phi);
+    this.threeCamera.target.z = 500 * Math.sin(this.phi) * Math.sin(this.theta);
 
-  // Show/update the arrows
-  function showPictureArrows() {
-    var pic = self.picsData[self.currentPicId];
+    this.threeCamera.lookAt(this.threeCamera.target);
+
+    /*
+    // distortion
+    camera.position.copy( camera.target ).negate();
+    */
+
+    this.threeRenderer.render(this.threeScene, this.threeCamera);
+  },
+
+  /**
+   * Show the navigation arrows
+   */
+  showPictureArrows: function() {
+    var pic = this.picsData[this.currentPicId];
 
     if(pic == undefined) {
       return;
     }
 
     // Removing current arrows
-    while(arrow = threeArrows.pop()) {
-      threeScene.remove(arrow);
+    while(arrow = this.threeArrows.pop()) {
+      this.threeScene.remove(arrow);
     }
 
     // Adding new ones
@@ -360,207 +458,129 @@ function OpenStreetViewPane(params) {
         // Attach infos
         arrowModel.userData.picId = pic.neighbors[i].id;
 
-        threeScene.add(arrowModel);
-        threeArrows.push(arrowModel);
+        this.threeScene.add(arrowModel);
+        this.threeArrows.push(arrowModel);
       }
     }
-  }
+  },
 
-  // Fetch or reuse an image
-  function getPictureTexture(picId) {
-    var pic = self.picsData[picId];
+  /**
+   * Fetch or reuse a pic
+   */
+  getPictureTexture: function(picId) {
+    var pic = this.picsData[picId];
 
     if(pic == undefined) {
       return null;
     }
 
-    if(picsTexture[picId]) {
-      return picsTexture[picId];
+    if(this.picsTexture[picId]) {
+      return this.picsTexture[picId];
     }
 
-    picsTexture[picId] = THREE.ImageUtils.loadTexture(pic.url);
-    return picsTexture[picId];
-  }
+    this.picsTexture[picId] = THREE.ImageUtils.loadTexture(pic.url);
+    return this.picsTexture[picId];
+  },
 
-  // Init the three renderer
-  function initViewer() {
-    self.domElement = document.getElementById(params.target);
-    self.domElement.className = self.domElement.className + " openstreetview";
+  /**
+   * Event listener
+   */
+  on: function(type, listener, opt_this) {
+    if(opt_this) {
+      listener = listener.bind(opt_this);
+    }
+    this.domElement.addEventListener(type, listener);
+  },
 
-    threeCamera = new THREE.PerspectiveCamera( 75, params.width / params.height, 0.1, 1100);
-    threeCamera.target = new THREE.Vector3( 0, 0, 0 );
 
-    threeScene = new THREE.Scene();
+  onMouseDown: function(event) {
+    event.preventDefault();
+    this.isUserInteracting = true;
 
-    var threeGeometry = new THREE.SphereGeometry( 500, 60, 40 );
-    threeGeometry.scale( - 1, 1, 1 );
+    //
+    // Prepare for camera moving with mouse DnD
+    //
+    onPointerDownPointerX = event.clientX;
+    onPointerDownPointerY = event.clientY;
+    onPointerDownLon = this.lon;
+    onPointerDownLat = this.lat;
 
-    var threeMaterial = new THREE.MeshBasicMaterial();
-    threeSphere = new THREE.Mesh( threeGeometry, threeMaterial );
+
+    //
+    // Find out if we got a directional arrow clicked
+    //
+    // Local 2D x/y cursor position
+    var rect = this.domElement.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var y = event.clientY - rect.top;
+
+    // Convert into a 3D cursor, x:(-1,1), y:(-1,1)
+    var mouse = new THREE.Vector3(
+      (x / this.params.width) * 2 - 1,
+      -(y / this.params.height) * 2 + 1,
+      0.5
+    );  
+
+    // Raycast and get the intersected arrows
+    this.threeRaycaster.setFromCamera(mouse, this.threeCamera);
+    var intersects = this.threeRaycaster.intersectObjects(this.threeArrows, true);
     
-    threeScene.add( threeSphere );
+    // if an arrow is clicked, we navigate
+    if(intersects.length > 0)
+    {
+      this.showPicture(intersects[0].object.parent.userData.picId);
+      // change the color of the closest face.
+      // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
+      // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
+    }
+  },
 
-    threeRenderer = new THREE.WebGLRenderer({ antialias: true });
-    threeRenderer.setPixelRatio(window.devicePixelRatio);
-    threeRenderer.setSize(params.width, params.height);
-    self.domElement.appendChild(threeRenderer.domElement);    
+  onMouseMove: function(event) {
+    if(this.isUserInteracting === true) {
+      this.lon = (onPointerDownPointerX - event.clientX) * 0.1 + onPointerDownLon;
+      this.lat = (event.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
+    }
+  },
 
-    // initialize raycaster
-    threeRaycaster = new THREE.Raycaster()
+  onMouseUp: function(event) {
+    this.isUserInteracting = false;
+  },
 
-    // Initialize JSON model loader
-    threeJsonLoader = new THREE.JSONLoader();
+  onMouseWheel: function(event) {
+    var fovMax = 80;
+    var fovMin = 20;
 
-    // load the arrow model
-    threeJsonLoader.load(
-      // resource URL
-      'models/arrow.json',
-      // Function when resource is loaded
-      function ( geometry, materials ) {
-        //var material = new THREE.MeshFaceMaterial( materials );
-        material = new THREE.MeshBasicMaterial({
-          // wireframe: true,
-          // wireframeLinewidth: 2,
-          color: '#1e72a3',
-          opacity: 0.8,
-          transparent: true
-        });
-        arrowMesh = new THREE.Mesh(geometry, material);
-        
-        showPictureArrows();
-      }
-    );
+    var newFov = 0;
+    // WebKit
+    if (event.wheelDeltaY) {
+        newFov = this.threeCamera.fov - event.wheelDeltaY * 0.05;
+    }
+    // Opera / Explorer 9
+    else if (event.wheelDelta) {
+        newFov = this.threeCamera.fov - event.wheelDelta * 0.05;
+    }
+    // Firefox
+    else if (event.detail) {
+        newFov = this.threeCamera.fov + event.detail * 0.05;
+    }
 
-    // Setup the controls
-    self.domElement.addEventListener( 'mousedown', onMouseDown, false);
-    window.addEventListener( 'mousemove', onMouseMove, false);
-    window.addEventListener( 'mouseup', onMouseUp, false );
-    self.domElement.addEventListener( 'mousewheel', onMouseWheel, false);
-    self.domElement.addEventListener( 'MozMousePixelScroll', onMouseWheel, false);
+    if(fovMin < newFov && newFov < fovMax) {
+      this.threeCamera.fov = newFov;
+      this.threeCamera.updateProjectionMatrix();
+    }
 
-    initTime = new Date();
-  }
-
-  // The rendering loop
-  function renderingLoop() {
-      requestAnimationFrame(renderingLoop);
-      render();
-  }
-
-  // The main rendering loop
-  function render() {
-      // A 360 hint, to show that you can drag the picture around
-      if(params.hint360) {
-        var timediff = new Date() - initTime;
-        if(timediff < 4000) {
-          lon += 0.2 * (4000 - timediff) / 4000;
-        }
-      }
-
-      lat = Math.max(-85, Math.min(85, lat));
-      phi = THREE.Math.degToRad(90 - lat);
-      theta = THREE.Math.degToRad(lon);
-
-      threeCamera.target.x = 500 * Math.sin(phi) * Math.cos(theta);
-      threeCamera.target.y = 500 * Math.cos(phi);
-      threeCamera.target.z = 500 * Math.sin(phi) * Math.sin(theta);
-
-      threeCamera.lookAt(threeCamera.target);
-
-      /*
-      // distortion
-      camera.position.copy( camera.target ).negate();
-      */
-
-      threeRenderer.render(threeScene, threeCamera);
-  }
-
-  function onMouseDown(event) {
-      event.preventDefault();
-      isUserInteracting = true;
-
-      //
-      // Prepare for camera moving with mouse DnD
-      //
-      onPointerDownPointerX = event.clientX;
-      onPointerDownPointerY = event.clientY;
-      onPointerDownLon = lon;
-      onPointerDownLat = lat;
-
-
-      //
-      // Find out if we got a directional arrow clicked
-      //
-      // Local 2D x/y cursor position
-      var rect = self.domElement.getBoundingClientRect();
-      var x = event.clientX - rect.left;
-      var y = event.clientY - rect.top;
-
-      // Convert into a 3D cursor, x:(-1,1), y:(-1,1)
-      var mouse = new THREE.Vector3(
-        (x / params.width) * 2 - 1,
-        -(y / params.height) * 2 + 1,
-        0.5
-      );  
-
-      // Raycast and get the intersected arrows
-      threeRaycaster.setFromCamera(mouse, threeCamera);
-      var intersects = threeRaycaster.intersectObjects(threeArrows, true);
-      
-      // if an arrow is clicked, we navigate
-      if(intersects.length > 0)
-      {
-        self.showPicture(intersects[0].object.parent.userData.picId);
-        // change the color of the closest face.
-        // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
-        // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
-      }
-  }
-
-  function onMouseMove(event) {
-      if ( isUserInteracting === true ) {
-          lon = (onPointerDownPointerX - event.clientX) * 0.1 + onPointerDownLon;
-          lat = (event.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
-      }
-  }
-
-  function onMouseUp(event) {
-      isUserInteracting = false;
-  }
-
-  function onMouseWheel(event) {
-      var fovMax = 80;
-      var fovMin = 20;
-
-      var newFov = 0;
-      // WebKit
-      if (event.wheelDeltaY) {
-          newFov = threeCamera.fov - event.wheelDeltaY * 0.05;
-      // Opera / Explorer 9
-      } else if (event.wheelDelta) {
-          newFov = threeCamera.fov - event.wheelDelta * 0.05;
-      // Firefox
-      } else if (event.detail) {
-          newFov = threeCamera.fov + event.detail * 0.05;
-      }
-
-      if(fovMin < newFov && newFov < fovMax) {
-        threeCamera.fov = newFov;
-        threeCamera.updateProjectionMatrix();
-      }
-
-      event.preventDefault();
-  }
+    event.preventDefault();
+  },
 
   // Prints a log message if in debug mode and console is available
-  function log(message) {
-    if (window.console && debug) {
+  log: function(message) {
+    if (window.console && this.debug) {
       console.log(message);
     }
-  }
-  
+  },
+
   // Merge objects together - from Secrets fo the JavaScript Ninja
-  function merge(root) {
+  merge: function(root) {
     for (var i = 1; i < arguments.length; i++) {
       for (var key in arguments[i]) {
         root[key] = arguments[i][key];
@@ -568,5 +588,4 @@ function OpenStreetViewPane(params) {
     }
     return root;
   }
-
 }
