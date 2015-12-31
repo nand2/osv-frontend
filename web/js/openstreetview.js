@@ -2,7 +2,6 @@
  * The bridge between the OSM map and the OSV viewer
  */
 function OpenStreetView(map_arg, osvp_arg, params) {
-  this.debug = true;
   this.debugClosestGeometryLine = null;
   this.debugClosestGeometryPoint = null;
   this.debugClosestPointLine = null;
@@ -17,6 +16,7 @@ function OpenStreetView(map_arg, osvp_arg, params) {
 
 
   var defaults = {
+    // The style of the current position marker
     positionPointStyle: new ol.style.Circle({
       radius: 10,
       fill: new  ol.style.Fill({
@@ -26,7 +26,20 @@ function OpenStreetView(map_arg, osvp_arg, params) {
         color: 'rgba(255, 153, 51,0.9)',
         width: 2
       })
-    })
+    }),
+    // Shall we show debug output
+    debug: false,
+    // Show a checkbox on the top right corner to activate/stop debugging
+    showDebugOption: false,
+    // The style of the marker of all available pics
+    debugPicturePointStyle: new ol.style.Circle({
+      radius: 10,
+      fill: null,
+      stroke: new ol.style.Stroke({
+        color: 'rgba(255, 153, 51,0.4)',
+        width: 2
+      })
+    }),
   };
 
   // Merge default with params
@@ -99,9 +112,30 @@ OpenStreetView.prototype = {
       var vectorContext = evt.vectorContext;
       vectorContext.setImageStyle(this.params.positionPointStyle);
       vectorContext.drawPointGeometry(this.positionPoint);
-    }, this);            
 
-    if(this.debug) {
+      if(this.params.debug) {
+        this.debugPostCompose(vectorContext);
+      }
+    }, this);
+
+    // Put a checkbox to activate debug
+    if(this.params.showDebugOption) {
+      // Preparing the control pane
+      var div = document.createElement('div');
+      div.className = 'osv-control-debug ol-control';
+      div.innerHTML = '<input type="checkbox"> OpenStreetView.io debug';
+      var checkbox = div.getElementsByTagName('input')[0];
+      checkbox.addEventListener("change", function() {
+        this.params.debug = !this.params.debug;
+        this.map.render();
+      }.bind(this));
+
+      // Inserting it
+      var myControl = new ol.control.Control({element: div});
+      myControl.setMap(this.map);
+    }      
+
+    if(this.params.debug) {
       var imageStyle = new ol.style.Circle({
         radius: 5,
         fill: null,
@@ -116,6 +150,9 @@ OpenStreetView.prototype = {
       });
       this.map.on('postcompose', function(evt) {
         var vectorContext = evt.vectorContext;
+
+        this.debugPostCompose(vectorContext);
+
         if (this.debugClosestGeometryPoint !== null) {
           vectorContext.setImageStyle(imageStyle);
           vectorContext.drawPointGeometry(this.debugClosestGeometryPoint);
@@ -163,7 +200,7 @@ OpenStreetView.prototype = {
       
 
 
-      if(this.debug) {
+      if(this.params.debug) {
         if (this.debugClosestGeometryPoint === null) {
           this.debugClosestGeometryPoint = new ol.geom.Point(closestGeometryPoint);
         } else {
@@ -186,6 +223,16 @@ OpenStreetView.prototype = {
     }
 
     this.map.render();
+  },
+
+  debugPostCompose: function(vectorContext) {
+      var picsData = this.osvp.getPictures();
+      Object.keys(picsData).forEach(function(picId) {
+        picData = picsData[picId];
+        debugPicPoint = new ol.geom.Point(ol.proj.fromLonLat([picData.coordinates.lon, picData.coordinates.lat]));
+        vectorContext.setImageStyle(this.params.debugPicturePointStyle);
+        vectorContext.drawPointGeometry(debugPicPoint);
+      }, this);
   },
 
   // Basic distance between points, incorrect in long lengths (projection etc)
@@ -360,7 +407,6 @@ OpenStreetViewPane.prototype = {
     this.threeJsonLoader = new THREE.JSONLoader();
 
     // load the arrow model
-    var self = this;
     this.threeJsonLoader.load(
       // resource URL
       'models/arrow.json',
@@ -376,8 +422,8 @@ OpenStreetViewPane.prototype = {
         });
         arrowMesh = new THREE.Mesh(geometry, material);
         
-        self.showPictureArrows();
-      }
+        this.showPictureArrows();
+      }.bind(this)
     );
 
     // Setup the controls
