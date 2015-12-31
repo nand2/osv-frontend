@@ -2,19 +2,18 @@
  * The bridge between the OSM map and the OSV viewer
  */
 function OpenStreetView(map_arg, osvp_arg, params) {
-  var self = this;
-  var debug = true;
-  var debugClosestGeometryLine = null;
-  var debugClosestGeometryPoint = null;
-  var debugClosestPointLine = null;
+  this.debug = true;
+  this.debugClosestGeometryLine = null;
+  this.debugClosestGeometryPoint = null;
+  this.debugClosestPointLine = null;
 
   // OSM elements
-  var map = null;
-  var vectorSource = null;
+  this.map = null;
+  this.vectorSource = null;
   this.positionPoint = new ol.geom.Point([0,0]);
 
   // Our pane
-  var osvp = null;
+  this.osvp = null;
 
 
   var defaults = {
@@ -31,18 +30,18 @@ function OpenStreetView(map_arg, osvp_arg, params) {
   };
 
   // Merge default with params
-  this.params = merge(defaults, params);
+  this.params = this.merge(defaults, params);
 
-  self.map = map_arg;
-  self.osvp = osvp_arg;
-  init();
+  this.map = map_arg;
+  this.osvp = osvp_arg;
 
+  this.init();
+}
 
-  //
-  // PRIVATE
-  //
+OpenStreetView.prototype = {
+  constructor: OpenStreetView,
 
-  function init() {
+  init: function() {
     var style = new ol.style.Style({
       stroke: new ol.style.Stroke({
         color: [0, 0, 255, 0.5],
@@ -84,25 +83,25 @@ function OpenStreetView(map_arg, osvp_arg, params) {
 
     // On click on the map, display the closest available pic
     this.map.on('click', function(e) {
-      displayPicSnap(e.coordinate);
-    });
+      this.displayPicSnap(e.coordinate);
+    }, this);
 
     // On navigation on the OSV viewer, update our location point
     this.osvp.on('navigate', function(e) {
-      var picsData = self.osvp.getPictures();
+      var picsData = this.osvp.getPictures();
       var picData = picsData[e.newPicId];
-      self.positionPoint.setCoordinates(ol.proj.fromLonLat([picData.coordinates.lon, picData.coordinates.lat]));
-      self.map.render();
-    });
+      this.positionPoint.setCoordinates(ol.proj.fromLonLat([picData.coordinates.lon, picData.coordinates.lat]));
+      this.map.render();
+    }, this);
 
     // On map draw, draw the current position
     this.map.on('postcompose', function(evt) {
       var vectorContext = evt.vectorContext;
-      vectorContext.setImageStyle(self.params.positionPointStyle);
-      vectorContext.drawPointGeometry(self.positionPoint);
-    });            
+      vectorContext.setImageStyle(this.params.positionPointStyle);
+      vectorContext.drawPointGeometry(this.positionPoint);
+    }, this);            
 
-    if(debug) {
+    if(this.debug) {
       var imageStyle = new ol.style.Circle({
         radius: 5,
         fill: null,
@@ -117,30 +116,27 @@ function OpenStreetView(map_arg, osvp_arg, params) {
       });
       this.map.on('postcompose', function(evt) {
         var vectorContext = evt.vectorContext;
-        if (debugClosestGeometryPoint !== null) {
+        if (this.debugClosestGeometryPoint !== null) {
           vectorContext.setImageStyle(imageStyle);
-          vectorContext.drawPointGeometry(debugClosestGeometryPoint);
+          vectorContext.drawPointGeometry(this.debugClosestGeometryPoint);
         }
-        if (debugClosestGeometryLine !== null) {
+        if (this.debugClosestGeometryLine !== null) {
           vectorContext.setFillStrokeStyle(null, strokeStyle);
-          vectorContext.drawLineStringGeometry(debugClosestGeometryLine);
+          vectorContext.drawLineStringGeometry(this.debugClosestGeometryLine);
         }
-        if (debugClosestPointLine !== null) {
+        if (this.debugClosestPointLine !== null) {
           vectorContext.setFillStrokeStyle(null, strokeStyle);
-          vectorContext.drawLineStringGeometry(debugClosestPointLine);
+          vectorContext.drawLineStringGeometry(this.debugClosestPointLine);
         }
-      });            
+      }, this);
     }
-  }
-
-  // Basic distance between points, incorrect in long lengths (projection etc)
-  function distanceBetweenPoints(latlng1, latlng2){
-      var line = new ol.geom.LineString([latlng1, latlng2]);
-      return Math.round(line.getLength() * 100) / 100;
-  }
+  },
 
 
-  function displayPicSnap(coordinate) {
+  /**
+   * Show the pic closest to the given coordinates
+   */
+  displayPicSnap: function(coordinate) {
     // Get the closest line of pics
     var closestFeature = vectorSource.getClosestFeatureToCoordinate(coordinate);
     if (closestFeature != null) {
@@ -151,9 +147,9 @@ function OpenStreetView(map_arg, osvp_arg, params) {
       // Get the closest actual pic on the line of pics
       var coordinates = geometry.getCoordinates();
       var closestCoordinateId = 0;
-      var minDistance = distanceBetweenPoints(closestGeometryPoint, coordinates[0]);
+      var minDistance = this.distanceBetweenPoints(closestGeometryPoint, coordinates[0]);
       for(var i = 1; i < coordinates.length; i++) {
-        var distance = distanceBetweenPoints(closestGeometryPoint, coordinates[i]);
+        var distance = this.distanceBetweenPoints(closestGeometryPoint, coordinates[i]);
         if(distance < minDistance) {
             closestCoordinateId = i;
             minDistance = distance;
@@ -167,33 +163,39 @@ function OpenStreetView(map_arg, osvp_arg, params) {
       
 
 
-      if(debug) {
-        if (debugClosestGeometryPoint === null) {
-          debugClosestGeometryPoint = new ol.geom.Point(closestGeometryPoint);
+      if(this.debug) {
+        if (this.debugClosestGeometryPoint === null) {
+          this.debugClosestGeometryPoint = new ol.geom.Point(closestGeometryPoint);
         } else {
-          debugClosestGeometryPoint.setCoordinates(closestGeometryPoint);
+          this.debugClosestGeometryPoint.setCoordinates(closestGeometryPoint);
         }
         var coordinates = [coordinate, [closestGeometryPoint[0], closestGeometryPoint[1]]];
-        if (debugClosestGeometryLine === null) {
-          debugClosestGeometryLine = new ol.geom.LineString(coordinates);
+        if (this.debugClosestGeometryLine === null) {
+          this.debugClosestGeometryLine = new ol.geom.LineString(coordinates);
         } else {
-          debugClosestGeometryLine.setCoordinates(coordinates);
+          this.debugClosestGeometryLine.setCoordinates(coordinates);
         }
 
         var debugLineCoordinates = [closestGeometryPoint, closestGeometryCoordinate];
-        if (debugClosestPointLine === null) {
-          debugClosestPointLine = new ol.geom.LineString(debugLineCoordinates);
+        if (this.debugClosestPointLine === null) {
+          this.debugClosestPointLine = new ol.geom.LineString(debugLineCoordinates);
         } else {
-          debugClosestPointLine.setCoordinates(debugLineCoordinates);
+          this.debugClosestPointLine.setCoordinates(debugLineCoordinates);
         }
       }
     }
 
     this.map.render();
-  }
+  },
+
+  // Basic distance between points, incorrect in long lengths (projection etc)
+  distanceBetweenPoints: function(latlng1, latlng2) {
+      var line = new ol.geom.LineString([latlng1, latlng2]);
+      return Math.round(line.getLength() * 100) / 100;
+  },
 
   // Merge objects together - from Secrets fo the JavaScript Ninja
-  function merge(root) {
+  merge: function(root) {
     for (var i = 1; i < arguments.length; i++) {
       for (var key in arguments[i]) {
         root[key] = arguments[i][key];
@@ -202,8 +204,6 @@ function OpenStreetView(map_arg, osvp_arg, params) {
     return root;
   }
 }
-
-
 
 
 
@@ -321,7 +321,10 @@ function OpenStreetViewPane(params) {
   /**
    * Event listener
    */
-  this.on = function(type, listener) {
+  this.on = function(type, listener, opt_this) {
+    if(opt_this) {
+      listener = listener.bind(opt_this);
+    }
     self.domElement.addEventListener(type, listener);
   }
 
