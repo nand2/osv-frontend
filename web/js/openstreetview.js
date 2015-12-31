@@ -63,6 +63,8 @@ function OpenStreetView(map_arg, osvp_arg, params) {
   this.init();
 }
 
+
+
 OpenStreetView.prototype = {
   constructor: OpenStreetView,
 
@@ -133,19 +135,7 @@ OpenStreetView.prototype = {
 
     // Put a checkbox to activate debug
     if(this.params.showDebugOption) {
-      // Preparing the control pane
-      var div = document.createElement('div');
-      div.className = 'osv-control-debug ol-control';
-      div.innerHTML = '<input type="checkbox"> OpenStreetView.io debug';
-      var checkbox = div.getElementsByTagName('input')[0];
-      checkbox.addEventListener("change", function() {
-        this.params.debug = !this.params.debug;
-        this.map.render();
-      }.bind(this));
-
-      // Inserting it
-      var myControl = new ol.control.Control({element: div});
-      myControl.setMap(this.map);
+      this.debugInsertDebugPane();
     }
   },
 
@@ -247,6 +237,25 @@ OpenStreetView.prototype = {
         vectorContext.drawLineStringGeometry(debugLine);
       }
     }
+  },
+
+  // Insert the debug pane that activate the debugging, and more
+  debugInsertDebugPane: function() {
+    // Preparing the control pane
+    var div = document.createElement('div');
+    div.className = 'osv-control-debug ol-control';
+    div.innerHTML = '<span class="activate-debug"><input type="checkbox"> OpenStreetView.io debug</span>';
+    var span = div.getElementsByTagName('span')[0];
+    var checkbox = span.getElementsByTagName('input')[0];
+    span.addEventListener("click", function() {
+      this.params.debug = !this.params.debug;
+      checkbox.checked = this.params.debug;
+      this.map.render();
+    }.bind(this));
+
+    // Inserting it
+    var myControl = new ol.control.Control({element: div});
+    myControl.setMap(this.map);
   },
 
   // Basic distance between points, incorrect in long lengths (projection etc)

@@ -3,6 +3,10 @@
   left: .5em;
 }
 
+.osv-control-debug .activate-debug {
+  cursor: pointer;
+}
+
 .openstreetview {
   cursor: pointer;
 }
