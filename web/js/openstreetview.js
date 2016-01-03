@@ -244,7 +244,7 @@ OpenStreetView.prototype = {
     // Preparing the control pane
     var div = document.createElement('div');
     div.className = 'osv-control-debug ol-control';
-    div.innerHTML = '<span class="activate-debug"><input type="checkbox"> OpenStreetView.io debug</span>';
+    div.innerHTML = '<span class="activate-debug"><input type="checkbox"> OpenStreetView debug</span>';
     var span = div.getElementsByTagName('span')[0];
     var checkbox = span.getElementsByTagName('input')[0];
     span.addEventListener("click", function() {
@@ -284,8 +284,6 @@ OpenStreetView.prototype = {
  * The viewer of the OSV pics
  */
 function OpenStreetViewPane(params) {
-  this.debug = true;
-
   // Pics data
   this.picsData = {};
   this.currentPicId = null;
@@ -311,13 +309,21 @@ function OpenStreetViewPane(params) {
   this.isUserInteracting = false;
   this.initTime = null;
 
+  // Debug
+  this.debugPane = null;
+
   var defaults = {
     // The DOM element receiving the viewer
     target: 'openstreetview',
     // The viewer dimension
     width: 640,
     height: 480,
-    hint360: false
+    // On loading, the camera is slightly rotating to give a 360 pic hint
+    hint360: false,
+    // Shall we show debug output
+    debug: false,
+    // Show a checkbox on the top right corner to activate/stop debugging
+    showDebugOption: false,
   };
 
   // Merge default with params
@@ -455,6 +461,11 @@ OpenStreetViewPane.prototype = {
     window.addEventListener('mouseup', this.onMouseUp.bind(this), false );
     this.domElement.addEventListener('mousewheel', this.onMouseWheel.bind(this), false);
     this.domElement.addEventListener('MozMousePixelScroll', this.onMouseWheel.bind(this), false);
+
+    // Put a checkbox to activate debug
+    if(this.params.showDebugOption) {
+      this.debugInsertDebugPane();
+    }
 
     this.initTime = new Date();
   },
@@ -641,9 +652,49 @@ OpenStreetViewPane.prototype = {
     event.preventDefault();
   },
 
+  // Insert the debug pane that activate the debugging, and more
+  debugInsertDebugPane: function() {
+    // Preparing the control pane
+    this.debugPane = document.createElement('div');
+    this.debugPane.className = 'osvp-control-debug';
+    this.debugPane.innerHTML = '<span class="activate-debug"><input type="checkbox"> OpenStreetView debug</span><div class="debug-data"><p><strong>Image:</strong> #<span class="pic-id"></span> <a class="pic-url" target="_blank" href="#"><span class="glyphicon glyphicon-save" aria-hidden="true"></span></a></p><p><strong>Coordinates</strong>: <span class="pic-lat"></span>°/<span class="pic-lon"></span>°</p><p><strong>Image correction:</strong> <span class="pic-correction-x"></span>°/<span class="pic-correction-y"></span>°/<span class="pic-correction-z"></span>°</p></div>';
+    var span = this.debugPane.getElementsByTagName('span')[0];
+    var checkbox = span.getElementsByTagName('input')[0];
+    span.addEventListener("click", function() {
+      this.params.debug = !this.params.debug;
+      checkbox.checked = this.params.debug;
+      // Show hide the data
+      var debugDataStyle = 'display:none';
+      if(this.params.debug) {
+        debugDataStyle = 'display:block';
+      }
+      this.debugPane.getElementsByClassName('debug-data')[0].setAttribute("style", debugDataStyle);
+    }.bind(this));
+
+    // Inserting it
+    this.domElement.appendChild(this.debugPane);
+
+    // Update the pane on image change
+    this.on('navigate', function(picId) {
+      this.debugUpdatePicDebugPane(picId);
+    }, this);
+  },
+
+  // Update the debug pane with infos of the given pic id
+  debugUpdatePicDebugPane: function(e) {
+    var picData = this.picsData[e.newPicId];
+    this.debugPane.getElementsByClassName('pic-id')[0].innerHTML = picData.id;
+    this.debugPane.getElementsByClassName('pic-url')[0].href = picData.url;
+    this.debugPane.getElementsByClassName('pic-lat')[0].innerHTML = picData.coordinates.lat;
+    this.debugPane.getElementsByClassName('pic-lon')[0].innerHTML = picData.coordinates.lon;
+    this.debugPane.getElementsByClassName('pic-correction-x')[0].innerHTML = picData.correction.rotation.x;
+    this.debugPane.getElementsByClassName('pic-correction-y')[0].innerHTML = picData.correction.rotation.y;
+    this.debugPane.getElementsByClassName('pic-correction-z')[0].innerHTML = picData.correction.rotation.z;
+  },
+
   // Prints a log message if in debug mode and console is available
   log: function(message) {
-    if (window.console && this.debug) {
+    if (window.console && this.params.debug) {
       console.log(message);
     }
   },

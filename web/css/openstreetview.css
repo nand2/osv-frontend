@@ -1,12 +1,43 @@
-.osv-control-debug {
-  bottom: .5em;
-  left: .5em;
-}
-
-.osv-control-debug .activate-debug {
-  cursor: pointer;
-}
-
 .openstreetview {
   cursor: pointer;
+}
+
+
+/**
+ * Debug panes
+ */
+.osv-control-debug, 
+.osvp-control-debug {
+  top: .5em;
+  right: .5em;
+  font-size: 13px;
+  padding: 4px;
+}
+
+.osvp-control-debug {
+  position: absolute;
+  background-color: rgba(255,255,255,.8);
+  border-radius: 4px;
+  cursor: auto;
+}
+
+.osvp-control-debug:hover {
+  background-color: rgba(255,255,255,.9);
+}
+
+.osv-control-debug .activate-debug,
+.osvp-control-debug .activate-debug {
+  cursor: pointer;
+}
+
+.osvp-control-debug .activate-debug {
+}
+
+.osvp-control-debug .debug-data {
+  display: none;
+  padding: 5px 5px 0px 5px;
+}
+
+.osvp-control-debug p {
+  margin-bottom: 2px;
 }
