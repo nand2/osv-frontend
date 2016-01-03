@@ -657,7 +657,15 @@ OpenStreetViewPane.prototype = {
     // Preparing the control pane
     this.debugPane = document.createElement('div');
     this.debugPane.className = 'osvp-control-debug';
-    this.debugPane.innerHTML = '<span class="activate-debug"><input type="checkbox"> OpenStreetView debug</span><div class="debug-data"><p><strong>Image:</strong> #<span class="pic-id"></span> <a class="pic-url" target="_blank" href="#"><span class="glyphicon glyphicon-save" aria-hidden="true"></span></a></p><p><strong>Coordinates</strong>: <span class="pic-lat"></span>°/<span class="pic-lon"></span>°</p><p><strong>Image correction:</strong> <span class="pic-correction-x"></span>°/<span class="pic-correction-y"></span>°/<span class="pic-correction-z"></span>°</p></div>';
+    this.debugPane.innerHTML = '<span class="activate-debug"><input type="checkbox"> OpenStreetView debug</span>\
+      <div class="debug-data">\
+        <p><strong>Id:</strong> <span class="pic-id"></span> <a class="pic-url" target="_blank" href="#"><span class="glyphicon glyphicon-save" aria-hidden="true"></span></a></p>\
+        <p><strong>OSM link:</strong> <span class="text-muted">way_type/way_id/distance</span></p>\
+        <p><strong>Orientation:</strong> <span class="pic-orientation"></span>°</p>\
+        <p><strong>Rotation correction:</strong> <span class="pic-correction-x"></span>°/<span class="pic-correction-y"></span>°/<span class="pic-correction-z"></span>°</p>\
+        <p><strong>Coordinates</strong>: <span class="pic-lat"></span>°/<span class="pic-lon"></span>°</p>\
+        <p><strong>Neighbors</strong>: <span class="pic-neighbors"></span></p>\
+      </div>';
     var span = this.debugPane.getElementsByTagName('span')[0];
     var checkbox = span.getElementsByTagName('input')[0];
     span.addEventListener("click", function() {
@@ -687,9 +695,16 @@ OpenStreetViewPane.prototype = {
     this.debugPane.getElementsByClassName('pic-url')[0].href = picData.url;
     this.debugPane.getElementsByClassName('pic-lat')[0].innerHTML = picData.coordinates.lat;
     this.debugPane.getElementsByClassName('pic-lon')[0].innerHTML = picData.coordinates.lon;
+    this.debugPane.getElementsByClassName('pic-orientation')[0].innerHTML = picData.orientation;
     this.debugPane.getElementsByClassName('pic-correction-x')[0].innerHTML = picData.correction.rotation.x;
     this.debugPane.getElementsByClassName('pic-correction-y')[0].innerHTML = picData.correction.rotation.y;
     this.debugPane.getElementsByClassName('pic-correction-z')[0].innerHTML = picData.correction.rotation.z;
+    var neighborsData = [];
+    for(var i = 0; i < picData.neighbors.length; i++) {
+      neighbor = picData.neighbors[i];
+      neighborsData.push(neighbor.id + "@" + neighbor.angle + "°");
+    }
+    this.debugPane.getElementsByClassName('pic-neighbors')[0].innerHTML = neighborsData.join(', ');
   },
 
   // Prints a log message if in debug mode and console is available
